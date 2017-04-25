@@ -1,0 +1,186 @@
+<div class="apidocDiv">
+<style>
+/*csslint
+*/
+.apidocDiv {
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.apidocDiv a[href] {
+    color: #33f;
+    font-weight: bold;
+    text-decoration: none;
+}
+.apidocDiv a[href]:hover {
+    text-decoration: underline;
+}
+.apidocCodeCommentSpan {
+    background: #bbf;
+    color: #000;
+    display: block;
+}
+.apidocCodeKeywordSpan {
+    color: #d00;
+    font-weight: bold;
+}
+.apidocCodePre {
+    background: #eef;
+    border: 1px solid;
+    color: #777;
+    padding: 5px;
+    white-space: pre-wrap;
+}
+.apidocFooterDiv {
+    margin-top: 20px;
+    text-align: center;
+}
+.apidocModuleLi {
+    margin-top: 10px;
+}
+.apidocSectionDiv {
+    border-top: 1px solid;
+    margin-top: 20px;
+}
+.apidocSignatureSpan {
+    color: #777;
+    font-weight: bold;
+}
+</style>
+<h1>api documentation for
+    <a
+
+        href="https://github.com/vankasteelj/opensubtitles-api#readme"
+
+    >opensubtitles-api (v4.0.0-rc1)</a>
+</h1>
+<h4>opensubtitles.org api wrapper</h4>
+<div class="apidocSectionDiv"><a
+    href="#apidoc.tableOfContents"
+    id="apidoc.tableOfContents"
+><h1>table of contents</h1></a><ol>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.opensubtitles-api">module opensubtitles-api</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.opensubtitles-api.opensubtitles-api">
+            function <span class="apidocSignatureSpan"></span>opensubtitles-api
+            <span class="apidocSignatureSpan">(can be MD5)</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+</ol></div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.opensubtitles-api" id="apidoc.module.opensubtitles-api">module opensubtitles-api</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.opensubtitles-api.opensubtitles-api" id="apidoc.element.opensubtitles-api.opensubtitles-api">
+        function <span class="apidocSignatureSpan"></span>opensubtitles-api
+        <span class="apidocSignatureSpan">(can be MD5)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">class OpenSubtitles {
+
+    /**
+     * Construct the module&#x27;s skeleton
+     * @param {Object}|{String} creds - the required information to use OpenSubtitles, can be simply the UA
+     *
+     * @param {String}          creds.useragent - mandatory, the OpenSubtitles User Agent
+     * @param {String}          creds.endpoint - optionnal, the endpoint to use.
+     * @param {Boolean}         creds.ssl - optionnal, set to true to use https.
+     * @param {String}          creds.username - optionnal, the username of a specific user
+     * @param {String}          creds.password - optionnal, the password of a specific user (can be MD5)
+     */
+    constructor(creds) {
+        if (!creds || (typeof creds === &#x27;object&#x27; &#x26;&#x26; !creds.useragent)) throw Error(&#x27;Missing useragent&#x27;)
+
+        this.credentials = {
+            username: creds.username || String(),
+            password: creds.password || String(),
+            useragent: creds.useragent || creds,
+            status: Object(),
+            userinfo: Object()
+        }
+
+        this.api = new OS(creds.endpoint, creds.ssl)
+    }
+
+
+    /**
+     * Log-in as user or anonymously, returns a token
+     */
+    login() {
+        if (this.credentials.status.auth_as === this.credentials.username &#x26;&#x26; this.credentials.status.ttl &#x3e; Date.now()) {
+            return Promise.resolve({
+                token: this.credentials.status.token,
+                userinfo: this.credentials.userinfo
+            })
+        }
+
+        return this.api.LogIn(this.credentials.username, this.credentials.password, &#x27;en&#x27;, this.credentials.useragent).then(response
+ =&#x3e; {
+            if (response.token &#x26;&#x26; (response.status &#x26;&#x26; response.status.match(/200/))) {
+                this.credentials.status.ttl = Date.now() + 895000 // ~15 min
+                this.credentials.status.token = response.token
+                this.credentials.status.auth_as = this.credentials.username
+                this.credentials.userinfo = response.data
+                return {
+                    token: response.token,
+                    userinfo: response.data
+                }
+            }
+
+            this.credentials.status = this.credentials.userinfo = Object()
+            throw Error(response.status || &#x27;LogIn unknown error&#x27;)
+        })
+    }
+
+    /**
+     * Search for subtitles
+     * @param {Object}          info - information about the video to be subtitled
+     *
+     * @param {String}|{Array}  info.extensions - Accepted extensions, defaults to &#x27;srt&#x27; (values: srt, sub, smi, txt, ssa, ass,
+mpl)
+     * @param {String}|{Array}  info.sublanguageid - Desired subtitle lang, ISO639-3 langcode, defaults to &#x27;all&#x27;
+     * @param {String}          info.hash - Size + 64bit checksum of the first and last 64k
+     * @param {String}          info.path - Absolute path to the video file, it allows to automatically calculate &#x27;hash&#x27;
+     * @param {String}|{Int}    info.filesize - Total size, in bytes
+     * @param {String}          info.filename - The video file name. Better if extension is included
+     * @param {String}|{Int}    info.season - If TV Episode
+     * @param {String}|{Int}    info.episode - If TV Episode
+     * @param {String}|{Int}    info.imdbid - IMDB id with or without leading &#x27;tt&#x27;
+     * @param {String}|{Int}    info.fps - Number of frames per sec in the video
+     * @param {String}          info.query - Text-based query, this is not recommended
+     * @param {String}|{Int}    info.limit - Number of subtitles to return for each language, can be &#x27;best&#x27;, &#x27;all&#x27; or an arbitrary
+ number. Defaults to &#x27;best&#x27;
+     */
+    search(info) {
+        let subs = Array()
+
+        return this.login()
+            .then(() =&#x3e; libsearch.optimizeQueryTerms(info))
+            .then(optimizedQT =&#x3e; {
+                return Promise.all(optimizedQT.map(op =&#x3e; {
+                    return this.api.SearchSubtitles(this.credentials.status.token, [op]).then(result =&#x3e; subs = subs.concat(result
+.data))
+                }))
+            })
+            .then(() =&#x3e; libsearch.optimizeSubs(subs, info)) ...</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocFooterDiv">
+    [ this document was created with
+    <a href="https://github.com/kaizhu256/node-utility2" target="_blank">utility2</a>
+    ]
+</div>
+</div>
